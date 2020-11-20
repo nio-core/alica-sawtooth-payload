@@ -3,30 +3,37 @@ pub mod pipe_separated;
 use std::fmt::{Debug, Display, Formatter, Result};
 use mockall;
 
-pub type ParsingResult = std::result::Result<TransactionPayload, ParsingError>;
+pub type ParsingResult = std::result::Result<TransactionPayload, Error>;
+pub type SerializationResult = std::result::Result<Vec<u8>, Error>;
 
 #[mockall::automock]
 pub trait Parser {
     fn parse(&self, bytes: &[u8]) -> ParsingResult;
 }
 
+#[mockall::automock]
+pub trait Serializer {
+    fn serialize(&self, payload: &TransactionPayload) -> SerializationResult;
+}
+
 #[derive(Debug)]
-pub enum ParsingError {
+pub enum Error {
     InvalidPayload(String),
     InvalidTimestamp,
 }
 
-impl Display for ParsingError {
+impl Display for Error {
     fn fmt(&self, formatter: &mut Formatter<'_>) -> Result {
         let message = match self {
-            ParsingError::InvalidPayload(message) => message,
-            ParsingError::InvalidTimestamp => "Payload contains invalid timestamp",
+            Error::InvalidPayload(message) => message,
+            Error::InvalidTimestamp => "Payload contains invalid timestamp",
         };
 
         write!(formatter, "{}", message)
     }
 }
 
+#[derive(PartialEq, Debug)]
 pub struct TransactionPayload {
     pub agent_id: String,
     pub message_type: String,
