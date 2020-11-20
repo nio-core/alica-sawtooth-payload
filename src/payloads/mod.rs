@@ -7,12 +7,12 @@ pub type ParsingResult = std::result::Result<TransactionPayload, Error>;
 pub type SerializationResult = std::result::Result<Vec<u8>, Error>;
 
 #[mockall::automock]
-pub trait Parser {
-    fn parse(&self, bytes: &[u8]) -> ParsingResult;
+pub trait Deserialize {
+    fn deserialize(&self, bytes: &[u8]) -> ParsingResult;
 }
 
 #[mockall::automock]
-pub trait Serializer {
+pub trait Serialize {
     fn serialize(&self, payload: &TransactionPayload) -> SerializationResult;
 }
 

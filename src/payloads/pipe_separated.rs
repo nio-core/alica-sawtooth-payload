@@ -1,4 +1,4 @@
-use crate::payloads::{Parser, Error, ParsingResult, TransactionPayload, Serializer, SerializationResult};
+use crate::payloads::{Deserialize, Error, ParsingResult, TransactionPayload, Serialize, SerializationResult};
 
 pub struct PipeSeparatedPayloadParser {}
 
@@ -8,8 +8,8 @@ impl PipeSeparatedPayloadParser {
     }
 }
 
-impl Parser for PipeSeparatedPayloadParser {
-    fn parse(&self, bytes: &[u8]) -> ParsingResult {
+impl Deserialize for PipeSeparatedPayloadParser {
+    fn deserialize(&self, bytes: &[u8]) -> ParsingResult {
         let payload = String::from_utf8(bytes.to_vec())
             .map_err(|_| Error::InvalidPayload("Payload is not a string".to_string()))?;
 
@@ -43,7 +43,7 @@ impl PipeSeparatedPayloadSerializer {
     }
 }
 
-impl Serializer for PipeSeparatedPayloadSerializer {
+impl Serialize for PipeSeparatedPayloadSerializer {
     fn serialize(&self, payload: &TransactionPayload) -> SerializationResult {
         let message = String::from_utf8(payload.message_bytes.clone())
             .map_err(|_| Error::InvalidPayload("Message is not a UTF8 String".to_string()))?;
@@ -54,12 +54,12 @@ impl Serializer for PipeSeparatedPayloadSerializer {
 
 #[cfg(test)]
 mod test {
-    use crate::payloads::{TransactionPayload, Serializer, Parser};
+    use crate::payloads::{TransactionPayload, Serialize, Deserialize};
     use crate::payloads::pipe_separated::{PipeSeparatedPayloadSerializer, PipeSeparatedPayloadParser};
 
     mod parsing {
         use crate::payloads::pipe_separated::PipeSeparatedPayloadParser;
-        use crate::payloads::Parser;
+        use crate::payloads::Deserialize;
 
         #[test]
         fn the_payload_is_valid_if_it_is_structured_properly() {
@@ -73,7 +73,7 @@ mod test {
                 .to_vec();
 
             let payload = PipeSeparatedPayloadParser::new()
-                .parse(&payload_bytes)
+                .deserialize(&payload_bytes)
                 .expect("Error parsing payload");
 
             assert_eq!(payload.agent_id, id);
@@ -93,7 +93,7 @@ mod test {
                 .to_vec();
 
             assert!(PipeSeparatedPayloadParser::new()
-                .parse(&payload_bytes)
+                .deserialize(&payload_bytes)
                 .is_err())
         }
 
@@ -108,7 +108,7 @@ mod test {
                 .to_vec();
 
             assert!(PipeSeparatedPayloadParser::new()
-                .parse(&payload_bytes)
+                .deserialize(&payload_bytes)
                 .is_err())
         }
 
@@ -123,7 +123,7 @@ mod test {
                 .to_vec();
 
             assert!(PipeSeparatedPayloadParser::new()
-                .parse(&payload_bytes)
+                .deserialize(&payload_bytes)
                 .is_err())
         }
 
@@ -138,7 +138,7 @@ mod test {
                 .to_vec();
 
             assert!(PipeSeparatedPayloadParser::new()
-                .parse(&payload_bytes)
+                .deserialize(&payload_bytes)
                 .is_err())
         }
 
@@ -146,13 +146,13 @@ mod test {
         fn empty_message_is_not_parsed() {
             let payload_bytes = "".as_bytes();
             assert!(PipeSeparatedPayloadParser::new()
-                .parse(payload_bytes)
+                .deserialize(payload_bytes)
                 .is_err())
         }
     }
 
     pub mod serialization {
-        use crate::payloads::{TransactionPayload, Serializer};
+        use crate::payloads::{TransactionPayload, Serialize};
         use crate::payloads::pipe_separated::PipeSeparatedPayloadSerializer;
 
         #[test]
@@ -256,7 +256,7 @@ mod test {
 
         let serialized_message = PipeSeparatedPayloadSerializer::new().serialize(&transaction_payload)
             .expect("Could not serialize payload");
-        let result = PipeSeparatedPayloadParser::new().parse(&serialized_message)
+        let result = PipeSeparatedPayloadParser::new().deserialize(&serialized_message)
             .expect("Could not parse payload");
 
         assert_eq!(result, transaction_payload)
