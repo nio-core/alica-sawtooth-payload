@@ -1,15 +1,29 @@
-use crate::payloads::{Parser, Error, ParsingResult, TransactionPayload, Serializer, SerializationResult};
+use crate::payloads::{Error, ParsingResult, TransactionPayload, SerializationResult};
+use crate::payloads;
 
-pub struct PipeSeparatedPayloadParser {}
+pub struct Format {}
 
-impl PipeSeparatedPayloadParser {
+impl Format {
     pub fn new() -> Self {
-        PipeSeparatedPayloadParser {}
+        Format {}
     }
 }
 
-impl Parser for PipeSeparatedPayloadParser {
-    fn parse(&self, bytes: &[u8]) -> ParsingResult {
+impl Default for Format {
+    fn default() -> Self {
+        Format {}
+    }
+}
+
+impl payloads::Format for Format {
+    fn serialize(&self, payload: &TransactionPayload) -> SerializationResult {
+        let message = String::from_utf8(payload.message_bytes.clone())
+            .map_err(|_| Error::InvalidPayload("Message is not a UTF8 String".to_string()))?;
+        let output = format!("{}|{}|{}|{}", payload.agent_id.clone(), payload.message_type.clone(), message, &payload.timestamp).as_bytes().to_vec();
+        Ok(output)
+    }
+
+    fn deserialize(&self, bytes: &[u8]) -> ParsingResult {
         let payload = String::from_utf8(bytes.to_vec())
             .map_err(|_| Error::InvalidPayload("Payload is not a string".to_string()))?;
 
@@ -35,31 +49,12 @@ impl Parser for PipeSeparatedPayloadParser {
     }
 }
 
-pub struct PipeSeparatedPayloadSerializer {}
-
-impl PipeSeparatedPayloadSerializer {
-    pub fn new() -> Self {
-        PipeSeparatedPayloadSerializer {}
-    }
-}
-
-impl Serializer for PipeSeparatedPayloadSerializer {
-    fn serialize(&self, payload: &TransactionPayload) -> SerializationResult {
-        let message = String::from_utf8(payload.message_bytes.clone())
-            .map_err(|_| Error::InvalidPayload("Message is not a UTF8 String".to_string()))?;
-        let output = format!("{}|{}|{}|{}", payload.agent_id.clone(), payload.message_type.clone(), message, &payload.timestamp).as_bytes().to_vec();
-        Ok(output)
-    }
-}
-
 #[cfg(test)]
 mod test {
-    use crate::payloads::{TransactionPayload, Serializer, Parser};
-    use crate::payloads::pipe_separated::{PipeSeparatedPayloadSerializer, PipeSeparatedPayloadParser};
+    use crate::payloads::{TransactionPayload, pipe_separated, Format};
 
     mod parsing {
-        use crate::payloads::pipe_separated::PipeSeparatedPayloadParser;
-        use crate::payloads::Parser;
+        use crate::payloads::{pipe_separated, Format};
 
         #[test]
         fn the_payload_is_valid_if_it_is_structured_properly() {
@@ -72,9 +67,7 @@ mod test {
                 .as_bytes()
                 .to_vec();
 
-            let payload = PipeSeparatedPayloadParser::new()
-                .parse(&payload_bytes)
-                .expect("Error parsing payload");
+            let payload = pipe_separated::Format::default().deserialize(&payload_bytes).expect("Error parsing payload");
 
             assert_eq!(payload.agent_id, id);
             assert_eq!(payload.message_type, message_type);
@@ -87,14 +80,13 @@ mod test {
             let id = "id";
             let message_type = "type";
             let message_text = "msg";
-
             let payload_bytes = format!("{}|{}|{}", id, message_type, message_text)
                 .as_bytes()
                 .to_vec();
 
-            assert!(PipeSeparatedPayloadParser::new()
-                .parse(&payload_bytes)
-                .is_err())
+            let result = pipe_separated::Format::default().deserialize(&payload_bytes);
+
+            assert!(result.is_err())
         }
 
         #[test]
@@ -102,14 +94,13 @@ mod test {
             let id = "id";
             let message_type = "type";
             let timestamp = 6849849849u64;
-
             let payload_bytes = format!("{}|{}|{}", id, message_type, timestamp)
                 .as_bytes()
                 .to_vec();
 
-            assert!(PipeSeparatedPayloadParser::new()
-                .parse(&payload_bytes)
-                .is_err())
+            let result = pipe_separated::Format::default().deserialize(&payload_bytes);
+
+            assert!(result.is_err());
         }
 
         #[test]
@@ -117,14 +108,13 @@ mod test {
             let id = "id";
             let message = "message";
             let timestamp = 9819849484984u64;
-
             let payload_bytes = format!("{}|{}|{}", id, message, timestamp)
                 .as_bytes()
                 .to_vec();
 
-            assert!(PipeSeparatedPayloadParser::new()
-                .parse(&payload_bytes)
-                .is_err())
+            let result = pipe_separated::Format::default().deserialize(&payload_bytes);
+
+            assert!(result.is_err());
         }
 
         #[test]
@@ -132,34 +122,33 @@ mod test {
             let message_type = "type";
             let message_text = "msg";
             let timestamp = 649494894984u64;
-
             let payload_bytes = format!("{}|{}|{}", message_type, message_text, timestamp)
                 .as_bytes()
                 .to_vec();
 
-            assert!(PipeSeparatedPayloadParser::new()
-                .parse(&payload_bytes)
-                .is_err())
+            let result = pipe_separated::Format::default().deserialize(&payload_bytes);
+
+            assert!(result.is_err());
         }
 
         #[test]
         fn empty_message_is_not_parsed() {
             let payload_bytes = "".as_bytes();
-            assert!(PipeSeparatedPayloadParser::new()
-                .parse(payload_bytes)
-                .is_err())
+
+            let result = pipe_separated::Format::default().deserialize(&payload_bytes);
+
+            assert!(result.is_err());
         }
     }
 
     pub mod serialization {
-        use crate::payloads::{TransactionPayload, Serializer};
-        use crate::payloads::pipe_separated::PipeSeparatedPayloadSerializer;
+        use crate::payloads::{pipe_separated, TransactionPayload, Format};
 
         #[test]
         fn it_serializes_valid_transaction_payloads() {
             let transaction_payload = TransactionPayload::default();
 
-            let result = PipeSeparatedPayloadSerializer::new().serialize(&transaction_payload);
+            let result = pipe_separated::Format::default().serialize(&transaction_payload);
 
             assert!(result.is_ok());
         }
@@ -168,7 +157,7 @@ mod test {
         fn serialized_payloads_are_utf8_strings() {
             let transaction_payload = TransactionPayload::default();
 
-            let result = PipeSeparatedPayloadSerializer::new().serialize(&transaction_payload).unwrap();
+            let result = pipe_separated::Format::default().serialize(&transaction_payload).unwrap();
 
             assert!(String::from_utf8(result).is_ok());
         }
@@ -177,7 +166,7 @@ mod test {
         fn serialized_messages_have_four_parts() {
             let transaction_payload = TransactionPayload::default();
 
-            let result = PipeSeparatedPayloadSerializer::new().serialize(&transaction_payload).unwrap();
+            let result = pipe_separated::Format::default().serialize(&transaction_payload).unwrap();
             let result_text = String::from_utf8(result).unwrap();
             let result_parts = result_text.split("|");
 
@@ -190,7 +179,7 @@ mod test {
             let mut transaction_payload = TransactionPayload::default();
             transaction_payload.agent_id = agent_id.to_string();
 
-            let result = PipeSeparatedPayloadSerializer::new().serialize(&transaction_payload).unwrap();
+            let result = pipe_separated::Format::default().serialize(&transaction_payload).unwrap();
 
             let result_text = String::from_utf8(result).unwrap();
             let mut result_parts = result_text.split("|");
@@ -204,7 +193,7 @@ mod test {
             let mut transaction_payload = TransactionPayload::default();
             transaction_payload.message_type = message_type.to_string();
 
-            let result = PipeSeparatedPayloadSerializer::new().serialize(&transaction_payload).unwrap();
+            let result = pipe_separated::Format::default().serialize(&transaction_payload).unwrap();
 
             let result_text = String::from_utf8(result).unwrap();
             let mut result_parts = result_text.split("|");
@@ -220,7 +209,7 @@ mod test {
             let mut transaction_payload = TransactionPayload::default();
             transaction_payload.message_bytes = message.as_bytes().to_vec();
 
-            let result = PipeSeparatedPayloadSerializer::new().serialize(&transaction_payload).unwrap();
+            let result = pipe_separated::Format::default().serialize(&transaction_payload).unwrap();
 
             let result_text = String::from_utf8(result).unwrap();
             let mut result_parts = result_text.split("|");
@@ -237,7 +226,7 @@ mod test {
             let mut transaction_payload = TransactionPayload::default();
             transaction_payload.timestamp = timestamp;
 
-            let result = PipeSeparatedPayloadSerializer::new().serialize(&transaction_payload).unwrap();
+            let result = pipe_separated::Format::default().serialize(&transaction_payload).unwrap();
 
             let result_text = String::from_utf8(result).unwrap();
             let mut result_parts = result_text.split("|");
@@ -254,9 +243,9 @@ mod test {
     fn serialized_messages_can_be_read_by_parser() {
         let transaction_payload = TransactionPayload::default();
 
-        let serialized_message = PipeSeparatedPayloadSerializer::new().serialize(&transaction_payload)
+        let serialized_message = pipe_separated::Format::default().serialize(&transaction_payload)
             .expect("Could not serialize payload");
-        let result = PipeSeparatedPayloadParser::new().parse(&serialized_message)
+        let result = pipe_separated::Format::default().deserialize(&serialized_message)
             .expect("Could not parse payload");
 
         assert_eq!(result, transaction_payload)
