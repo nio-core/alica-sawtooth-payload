@@ -11,8 +11,7 @@ pub trait Deserialize {
     fn deserialize(&self, bytes: &[u8]) -> ParsingResult;
 }
 
-#[mockall::automock]
-pub trait Serialize {
+pub trait Format: Deserialize{
     fn serialize(&self, payload: &TransactionPayload) -> SerializationResult;
 }
 
