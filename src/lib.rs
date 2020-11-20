@@ -5,8 +5,8 @@ pub mod payloads;
 pub mod helper;
 
 pub struct TransactionFamily {
-    name: String,
-    versions: Vec<String>
+    pub name: String,
+    pub versions: Vec<String>
 }
 
 impl TransactionFamily {
