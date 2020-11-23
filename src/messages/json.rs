@@ -285,6 +285,7 @@ impl AlicaMessageJsonValidator for CapnZeroIdValidator {
     }
 }
 
+#[cfg(test)]
 mod test {
     mod alica_engine_info {
         use crate::messages::json::AlicaEngineInfoValidator;
