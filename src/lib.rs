@@ -4,6 +4,7 @@ pub mod messages;
 pub mod payloads;
 pub mod helper;
 
+#[derive(Clone)]
 pub struct TransactionFamily {
     pub name: String,
     pub versions: Vec<String>
