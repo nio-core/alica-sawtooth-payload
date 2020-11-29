@@ -1,2 +1,2 @@
-# Sawtooth Alica Message Transaction Payload
+# Sawtooth Alica Payload
 
